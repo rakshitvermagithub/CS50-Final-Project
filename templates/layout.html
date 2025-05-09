@@ -1,15 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Meditato</title>
-  <!-- Tailwind CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-</head>
-<body class="bg-white text-black">
-  <!-- Navbar/Header here if needed -->
-  {% block content %}{% endblock %}
-  <!-- Footer if needed -->
-</body>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> Meditato: {% block title %}{% endblock %} </title>
+
+    <!-- Tailwind CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+  </head>
+
+  <body class="bg-white text-black font-sans">
+
+    <!-- Navbar -->
+    <nav class="flex items-center justify-between p-4 border-b border-gray-300">
+      <div class="text-xl font-semibold">Meditato</div>
+      <ul class="flex gap-6 text-sm">
+        <li><a href="#" class="hover:underline">Meditate</a></li>
+        <li><a href="#" class="hover:underline">Read</a></li>
+        <li><a href="#" class="hover:underline">Profile</a></li>
+      </ul>
+    </nav>
+
+    <main class="p-6"> 
+      {% block main %}{% endblock %}
+    </main>
+    
+    <!-- Footer if needed -->
+  </body>
 </html>
