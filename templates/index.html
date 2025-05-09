@@ -1,22 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Meditato - Home</title>
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-</head>
-<body class="bg-white text-black font-sans">
-  <!-- Navbar -->
-  <nav class="flex items-center justify-between p-4 border-b border-gray-300">
-    <div class="text-xl font-semibold">Meditato</div>
-    <ul class="flex gap-6 text-sm">
-      <li><a href="#" class="hover:underline">Meditate</a></li>
-      <li><a href="#" class="hover:underline">Read</a></li>
-      <li><a href="#" class="hover:underline">Profile</a></li>
-    </ul>
-  </nav>
+{% extends "layout.html" %}
 
+{% block title %}
+	Homepage	
+{% endblock %}
+
+{% block main %}
   <!-- Hero Section -->
   <header class="text-center py-16 px-4">
     <h1 class="text-4xl md:text-5xl font-bold mb-4">Hello, Rakshit</h1>
@@ -45,5 +33,4 @@
       </div>
     </div>
   </section>
-</body>
-</html>
+{% endblock %}
