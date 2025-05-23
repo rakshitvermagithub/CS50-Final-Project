@@ -1,0 +1,28 @@
+{% extends 'layout.html' %}
+
+{% block title %}
+    Mantra
+{% endblock %} {# Sets the specific title for this page #}
+
+{% block main %}
+<div class="max-w-4xl mx-auto text-center"> {# Container for content width and centering #}
+    <h1 class="text-5xl font-bold mb-5">MANTRA Meditation.</h1>
+    <p class="text-xl text-gray-500 max-w-2xl mx-auto mb-16">
+        Considered as an easier practice to focus and recommended by
+        Hindu god Krishna in the holy book Shrimad Bhagavat Gita.
+    </p>
+
+    <div class="flex flex-wrap justify-center gap-8">
+        <div class="bg-white rounded-2xl p-8 shadow-lg flex flex-col items-center justify-between w-full max-w-md min-h-[250px]">
+            <p class="text-2xl font-semibold mb-3">Choose the Mantra here</p>
+            <p class="text-base text-gray-500 mb-8">to count automatically as you chant, increasing focus.</p>
+            <a href="#" class="inline-block px-8 py-3 rounded-full text-white bg-apple-blue font-semibold text-lg transition-all duration-200 hover:bg-blue-600 hover:translate-y-[-2px] hover:shadow-md">Select for your mood</a>
+        </div>
+        <div class="bg-white rounded-2xl p-8 shadow-lg flex flex-col items-center justify-between w-full max-w-md min-h-[250px]">
+            <p class="text-2xl font-semibold mb-3">Record your own</p>
+            <p class="text-base text-gray-500 mb-8">Start with tap and count to count manually as you chant, requires to tap to count.</p>
+            <a href="/record" class="inline-block px-8 py-3 rounded-full text-white bg-apple-blue font-semibold text-lg transition-all duration-200 hover:bg-blue-600 hover:translate-y-[-2px] hover:shadow-md">Record your own</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
