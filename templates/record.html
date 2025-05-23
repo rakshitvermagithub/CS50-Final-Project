@@ -1,0 +1,12 @@
+{% extends 'layout.html' %}
+
+{% block title %}Record Your Mantra{% endblock %} {# Sets the specific title for this page #}
+
+{% block main %}
+<div class="max-w-4xl mx-auto flex flex-col items-center justify-center min-h-[calc(100vh-200px)] text-center">
+    <div id="recordingCircle" class="w-64 h-64 bg-gray-200 rounded-full flex justify-center items-center mb-10 shadow-inner shadow-gray-300/50 shadow-2xl transition-all duration-300 ease-in-out">
+        <span id="recordButtonText" class="text-3xl font-semibold text-gray-800 select-none">Tap to Start/Stop Recording</span>
+    </div>
+    <p class="text-xl text-gray-500 mt-[-20px] mb-12" id="recordingPrompt"></p>
+</div>
+{% endblock %}
