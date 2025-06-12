@@ -7,6 +7,7 @@ load_dotenv()
 class Config:
     SECRET_KEY = os.getenv('SECRET_KEY')
     DATABASE_FILE = os.getenv('DATABASE_FILE')  # << Only file path, not full database URI
+    UPLOAD_FOLDER = os.getenv('UPLOAD_FOLDER')  
 
     # OAuth settings
     OAUTH_CLIENT_ID = os.getenv('OAUTH_CLIENT_ID')
@@ -15,3 +16,6 @@ class Config:
     # Session configurations
     SESSION_PERMANENT = False
     SESSION_TYPE = "filesystem"
+
+    # Deepgram API
+    DEEPGRAM_API_KEY = os.getenv('DEEPGRAM_API_KEY')
