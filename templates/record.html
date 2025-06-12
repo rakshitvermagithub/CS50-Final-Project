@@ -9,14 +9,20 @@
     </div>
     <p class="text-xl text-gray-500 mt-[-20px] mb-12" id="recordingPrompt"></p>
 </div>
+<a href="/mantra" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full" >
+  x
+</a>
 <div class="justify-center">
     <audio id="audioPlayer" controls></audio>
 </div>
 
 <script>
+
+let recordingCounter = 0; 
+
 document.addEventListener('DOMContentLoaded', () => {
     const recordingCircle = document.getElementById('recordingCircle');
-    const recordingButtonText = document.getElementById('recordingButtonText');
+    const recordingButtonText = document.getElementById('recordButtonText');
     const recordingPrompt = document.getElementById('recordingPrompt');
     const errorArea = document.getElementById('errorArea');
     let audioPlayer = document.getElementById('audioPlayer'); 
@@ -46,6 +52,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     const recordingUrl = URL.createObjectURL(recordedBlob)
                     audioPlayer.src = recordingUrl;
                     audioPlayer.controls = true;
+                    recordingButtonText.textContent = 'Mantra saved... Processing';
+
+                    const filename = `haribol_${recordingCounter}.webm`; // variable filename to prevent overwriting
+                    
+                    const formData = new FormData();
+                    formData.append('audio', recordedBlob, filename);
+
+                    fetch('/save_mantra',{
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if(data.message){
+                            console.log('Audio saved:', data.message);
+                        } else if (data.error){
+                            console.error('Error saving audio', data.error);
+                        }
+                    })
+
+                    recordingCounter++;  
                 }
                 // Starts or stops recording based on isRecording
                 toggleRecording();
