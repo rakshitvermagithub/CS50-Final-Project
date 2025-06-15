@@ -15,10 +15,17 @@
     <!-- Navbar -->
     <nav class="flex items-center justify-between p-4 border-b border-gray-300">
       <div class="text-xl font-semibold">Meditato</div>
-      <ul class="flex gap-6 text-sm">
-        <li><a href="#" class="hover:underline">Meditate</a></li>
+      <ul class="flex gap-6 text-sm items-center">
+        <li><a href="/" class="hover:underline">Meditate</a></li>
         <li><a href="#" class="hover:underline">Read</a></li>
         <li><a href="#" class="hover:underline">Profile</a></li>
+        {% if logged_in %}
+          {# You can add user_id or username here if passed from Flask #}
+          <li><a href="/logout" class="py-2 px-4 rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors">Logout</a></li>
+        {% else %}
+          <li><a href="/login" class="py-2 px-4 rounded-full bg-apple-blue text-white hover:bg-blue-600 transition-colors">Login</a></li>
+          <li><a href="/register" class="py-2 px-4 rounded-full border border-apple-blue text-apple-blue hover:bg-apple-blue hover:text-white transition-colors">Register</a></li>
+        {% endif %}
       </ul>
     </nav>
 
