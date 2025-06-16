@@ -2,45 +2,42 @@
 
 {% block title %}
     Mantra
-{% endblock %} {# Sets the specific title for this page #}
+{% endblock %} 
 
 {% block main %}
-<div class="max-w-4xl mx-auto text-center"> {# Container for content width and centering #}
+<div class="max-w-4xl mx-auto text-center">
+
     <h1 class="text-5xl font-bold mb-5">MANTRA Meditation.</h1>
+
     <p class="text-xl text-gray-500 max-w-2xl mx-auto mb-16">
         Considered as an easier practice to focus and recommended by
         Hindu god Krishna in the holy book Shrimad Bhagavat Gita.
     </p>
-
+     
+    <!-- Automatic Chanting options-->
     <div class="flex justify-center gap-8 mb-8">
         <div class="bg-white rounded-2xl p-8 shadow-lg flex flex-col items-center justify-between w-full max-w-md min-h-[250px]">
             <p class="text-2xl font-semibold mb-3">Choose the Mantra here</p>
-            <p class="text-base text-gray-500 mb-8">Choos from recorded mantras, and count automatically</p>
-            <a href="#" class="inline-block px-8 py-3 rounded-full text-white bg-apple-blue font-semibold text-lg transition-all duration-200 hover:bg-blue-600 hover:translate-y-[-2px] hover:shadow-md">Select for your mood</a>
-            <div class="overflow-x-auto w-full">
-                <table class="table-auto w-full text-left">
-                    <thead class="bg-gray-100">
-                        <tr>
-                            <th class="px-4 py-2">S.No.</th>
-                            <th class="px-4 py-2">Recorded Mantra</th>
-                            <th class="px-4 py-2">Go</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for mantra_item in mantras %}
-                        <tr>
-                            <td class="border px-4 py-2">{{ loop.index }}</td>
-                            <td class="border px-4 py-2">{{ mantra_item.mantra }}</td>
-                            <td class="border px-4 py-2">
-                                <button class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">Go</button>
-                            </td>
-                        </tr>
+            <p class="text-base text-gray-500 mb-8">to count automatically as you chant, increasing focus.</p>
+            
+            <div class="w-full"> 
+                <!-- Form to send mantra to chanting page via Post request-->
+                <form action="/chanting" method="post">
+                    <!-- Select menu, shows already recorded mantras -->
+                    <select id="mantra_select" name="selected_mantra" class="block w-full py-2 px-3 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+                        <option value="" disabled selected>Select a Recorded Mantra</option>
+                        {% for user in mantras %}
+                            <option value="{{ user.mantra }}">{{ user.mantra }}</option>
                         {% else %}
-                        <tr><td class="border px-4 py-2" colspan="3">No mantras recorded yet.</td></tr>
+                            <option value="" disabled>No mantras recorded yet.</option>
                         {% endfor %}
-                    </tbody>
-                </table>
+                    </select>
+                    <button type="submit" class="bg-transparent hover:bg-blue-500 text-blue-700 font-semibold hover:text-white py-2 px-4 border border-blue-500 hover:border-transparent rounded">
+                        Start
+                    </button>
+                </form>
             </div>
+
         </div>
         <div class="bg-white rounded-2xl p-8 shadow-lg flex flex-col items-center justify-between w-full max-w-md min-h-[250px]">
             <p class="text-2xl font-semibold mb-3">Record your own</p>
@@ -48,11 +45,12 @@
             <a href="/record" class="inline-block px-8 py-3 rounded-full text-white bg-apple-blue font-semibold text-lg transition-all duration-200 hover:bg-blue-600 hover:translate-y-[-2px] hover:shadow-md">Record your own</a>
         </div>
     </div>
-
+    
+    <!-- Manual chanting option -->
     <div class="bg-white rounded-2xl p-8 shadow-lg flex flex-col items-center justify-between w-full max-w-md min-h-[250px] mx-auto">
         <p class="text-2xl font-semibold mb-3">Tap and count</p>
         <p class="text-base text-gray-500 mb-8">Count manually as you chant by tapping, requires your active tapping to count.</p>
         <a href="#" class="inline-block px-8 py-3 rounded-full text-white bg-apple-blue font-semibold text-lg transition-all duration-200 hover:bg-blue-600 hover:translate-y-[-2px] hover:shadow-md">Start tapping</a>
     </div>
+
 </div>
-{% endblock %}
