@@ -16,6 +16,7 @@ class Config:
     # Session configurations
     SESSION_PERMANENT = False
     SESSION_TYPE = "filesystem"
+    SECRET_KEY = os.getenv('SECRET_KEY')
 
     # Deepgram API
     DEEPGRAM_API_KEY = os.getenv('DEEPGRAM_API_KEY')
