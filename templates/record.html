@@ -1,6 +1,8 @@
 {% extends 'layout.html' %}
 
-{% block title %}Record Your Mantra{% endblock %} {# Sets the specific title for this page #}
+{% block title %}
+    Record Your Mantra
+{% endblock %} 
 
 {% block main %}
 <div class="max-w-4xl mx-auto flex flex-col items-center justify-center min-h-[calc(100vh-200px)] text-center">
@@ -15,9 +17,11 @@
 <div class="justify-center">
     <audio id="audioPlayer" controls></audio>
 </div>
+{% endblock %}
 
+<!-- Javascript Functionalities --> 
+{% block script %}
 <script>
-
 let recordingCounter = 0; 
 
 document.addEventListener('DOMContentLoaded', () => {
