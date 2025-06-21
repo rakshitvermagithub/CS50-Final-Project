@@ -1,0 +1,184 @@
+{% extends 'layout.html' %}
+
+{% block title %}
+    Chanting
+{% endblock %}
+
+{% block main %}
+<div class="bg-gray-100 min-h-[calc(100vh_-_108px)] flex items-center justify-center relative">
+    <div id="targetPrompt" class="fixed top-0 left-0 w-full h-full bg-gray-900 bg-opacity-75 flex flex-col items-center justify-center text-white z-50">
+        <div class="bg-white text-gray-800 p-8 rounded-md shadow-lg">
+            <p class="text-xl font-semibold mb-4">What's your target count today?</p>
+            <input type="number" id="targetCountInput" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="Enter your target" value="108">
+            <button id="startChantingButton" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline mt-4">Start Chanting</button>
+        </div>
+    </div>
+
+    <div id="chantingSection" class="hidden flex flex-col items-center justify-center">
+        <div class="absolute top-4 right-4">
+            <a href="/mantra" class="text-gray-600 hover:text-gray-800">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </a>
+        </div>
+
+        <div class="mb-4">
+            <p class="text-xl text-gray-700">Count: <span id="chantingCounter">0</span></p>
+        </div>
+
+        <h2 id="mantraDisplay" class="text-6xl font-bold text-gray-800 text-center" style="font-size: max(6vh, 6vw);">
+            {{ mantra }}
+        </h2>
+
+        <div class="mt-2">
+            <p class="text-sm text-gray-500 underline">Start chanting, we'll let you know when you are done</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+<!-- Javascript functionalities-->
+{% block script %} 
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+
+    // --- Global State Variables ---
+    const socket = io(); // Connect to the Flask-SocketIO server
+    let mediaRecorder;
+    let isChanting = false;
+    let targetCount = 108; // Default value
+
+    // --- DOM Element References ---
+    const targetPrompt = document.getElementById('targetPrompt');
+    const targetCountInput = document.getElementById('targetCountInput');
+    const startChantingButton = document.getElementById('startChantingButton');
+    const chantingSection = document.getElementById('chantingSection');
+    const chantingCounter = document.getElementById('chantingCounter');
+    const mantraDisplay = document.getElementById('mantraDisplay');
+    const closeButton = document.querySelector('.absolute.top-4.right-4 a');
+
+
+    // --- Core Functions ---
+
+    /**
+     * This is the main function to start the process.
+     * It gets microphone access and sets up the MediaRecorder to stream audio.
+     */
+    async function startMicrophoneAndStreaming() {
+        if (isChanting) {
+            console.log("Already chanting.");
+            return;
+        }
+
+        try {
+            // 1. Get Microphone Access
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            
+            // 2. Create the MediaRecorder
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+            
+            // 3. Define what happens when audio data is available
+            mediaRecorder.ondataavailable = (event) => {
+                if (event.data.size > 0 && isChanting) {
+                    // Send the audio chunk to our server via WebSocket
+                    socket.emit('audio_chunk', event.data);
+                }
+            };
+
+            // 4. Tell the server we are starting
+            const mantraText = mantraDisplay.textContent.trim();
+            socket.emit('start_chanting', mantraText);
+            
+            // 5. Start recording and sending data in chunks (e.g., every 500ms)
+            // The timeslice is important for real-time streaming.
+            mediaRecorder.start(150);
+            
+            isChanting = true;
+            console.log("Microphone on and streaming started.");
+
+        } catch (error) {
+                console.error("Error accessing microphone:", error);
+                alert("Could not access microphone. Please ensure permissions are granted and try again.");
+                // Reset UI if failed
+                // Show prompt
+                targetPrompt.classList.remove('hidden');
+                // hide chanting section
+                chantingSection.classList.add('hidden'); 
+            }    
+
+    }
+
+     /**Stops the microphone and notifies the server.**/
+    function stopChanting() {
+        if (!isChanting) return;
+
+        isChanting = false;
+        
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+        }
+
+        // Politely tell the server we're done
+        socket.emit('stop_chanting');
+            
+        console.log("Chanting stopped.");
+        // Here you could redirect or show a final summary
+        // For now, we'll just leave them on the page
+        }       
+
+    // Listener for the initial "Start Chanting" button in the prompt
+    startChantingButton.addEventListener('click', () => {
+        targetCount = parseInt(targetCountInput.value, 10) || 108;
+        
+        // Hide prompt
+        targetPrompt.classList.add('hidden');
+
+        // Show chanting section
+        chantingSection.classList.remove('hidden'); 
+
+        // Start the magic
+        startMicrophoneAndStreaming();
+    });
+    // Listener for the 'X' button to stop chanting manually
+    closeButton.addEventListener('click', (event) => {
+        event.preventDefault(); // Prevent navigation
+        stopChanting();
+        alert("Chanting session stopped.");
+        window.location.href = "/mantra"; // Or wherever you want to redirect
+    });
+
+    // --- Socket.IO Event Handlers (Listening to the Server) ---
+
+    socket.on('connect', () => {
+        console.log('Successfully connected to server with SID:', socket.id);
+    });
+    // Handles count updates from the server
+    socket.on('update_count', (data) => {
+        console.log('Received count update:', data.count);
+        chantingCounter.textContent = data.count;
+
+        // Check if target is reached
+        if (data.count >= targetCount) {
+            alert(`Congratulations! You have completed your target of ${targetCount} chants.`);
+            stopChanting();
+        }
+    });
+
+    // Handles any errors sent from the server
+    socket.on('chanting_error', (data) => {
+        console.error('Server error:', data.message);
+        alert(`An error occurred: ${data.message}`);
+        stopChanting();
+    });
+
+    socket.on('disconnect', () => {
+        console.log('Disconneted from the server.');
+        isChanting = false
+        if (mediaRecorder && mediaRecorder.state === 'recording') {
+            mediaRecorder.stop();
+        }
+    });
+});
+</script>
+{% endblock %}

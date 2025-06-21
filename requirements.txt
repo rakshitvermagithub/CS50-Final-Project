@@ -5,3 +5,4 @@ oauthlib
 python-dotenv
 requests
 deepgram-sdk
+flask-socketio

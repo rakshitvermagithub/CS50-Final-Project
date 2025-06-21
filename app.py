@@ -1,20 +1,59 @@
 import os
 from cs50 import SQL
-from flask import Flask,redirect, request, render_template, jsonify, session
+from flask import Flask, redirect, request, render_template, jsonify, session
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask_session import Session
 from config import Config
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
-from deepgram import DeepgramClient, PrerecordedOptions, FileSource
+from deepgram import DeepgramClient, PrerecordedOptions, FileSource, LiveOptions, LiveTranscriptionEvents
+import threading
+import time
 
 app = Flask(__name__)
 app.config.from_object(Config)
 Session(app)
+socketio = SocketIO(app)
+
+class KeepAliveManager:
+    def __init__(self, interval=8):
+        self.interval = interval
+        self.timer = None
+        self.connection = None
+        self.running = False
+
+    def _keep_alive(self):
+        if not self.running:
+            return
+        if self.connection:
+            try:
+                self.connection.send('{"type": "KeepAlive"}')
+                print("Keep-alive sent")
+            except Exception as e:
+                print(f"keep_alive failed: {e}")
+        if self.running:
+            self.timer = threading.Timer(self.interval, self._keep_alive)
+            self.timer.start()
+
+    def start(self, connection):
+        self.connection = connection
+        self.running = True
+        self._keep_alive()
+
+    def stop(self):
+        self.running = False
+        if self.timer:
+            self.timer.cancel()
+            self.timer = None
+        self.connection = None
 
 db = SQL(f"sqlite:///{app.config['DATABASE_FILE']}")
 save_folder = app.config['UPLOAD_FOLDER']
 DEEPGRAM_API_KEY = app.config['DEEPGRAM_API_KEY']
 
+deepgram = DeepgramClient(DEEPGRAM_API_KEY)
+
+user_chanting_sessions = {}
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -129,8 +168,8 @@ def index():
 def mantra():
     # If user is logged_in 
     if "user_id" in session:
-        id = session["user_id"]
-        return render_template("mantra.html", logged_in=True)
+        mantras = db.execute("SELECT mantra FROM mantras WHERE id = ?", session["user_id"])
+        return render_template("mantra.html", logged_in=True, mantras=mantras)
     else:
         return render_template("mantra.html", logged_in=False)
 
@@ -159,9 +198,8 @@ def save():
             
             saving_message = "File saved, successfully"
 
+            # Deepgram speech-to-text API usage
             try: 
-                deepgram = DeepgramClient(DEEPGRAM_API_KEY)
-
                 with open(file_path, "rb") as file:
                     buffer_data = file.read()
 
@@ -184,7 +222,7 @@ def save():
                 mantra = (response["results"]["channels"][0]["alternatives"][0]["transcript"])
 
                 # Only store mantra, if it got heard
-                if not mantra == '':
+                if not mantra == " ":
                     # Store mantra in mantras table
                     db.execute(
                         "INSERT INTO mantras(id, mantra) VALUES(?, ?)", session["user_id"], mantra 
@@ -198,5 +236,177 @@ def save():
             return jsonify({'status': 'error', 'message': f'Error saving audio file: {e}'}), 500    
     return jsonify({'error': 'Failed to save audio'}), 500
 
+@app.route("/chanting", methods=["GET", "POST"])
+def chanting():
+    # If user reached route via POST (with a chosen chanting mantra)
+    if request.method == "POST":
+        # Get the mantra in text form
+        selected_mantra = request.form.get("selected_mantra")
+        return render_template("automatic_chanting.html", mantra=selected_mantra, logged_in=True)
+    
+    # If user reached route via GET (for manual chanting)
+    if request.method == "GET":
+        return render_template("manual_chanting.html", logged_in=True)
+
+@socketio.on('connect')
+def connect():
+    print(f'Client connected: {request.sid}')
+
+def on_open(connection):
+    print('Deepgram WebSocket connection opened.')
+
+def on_transcript(result, request_sid, mantra, user_chanting_sessions):
+    print("on_transcript called!", result)
+    try:
+        # Handle both dict and object for compatibility
+        if isinstance(result, dict):
+            transcript = result["channel"]["alternatives"][0]["transcript"]
+            words = result["channel"]["alternatives"][0].get("words", [])
+        else:
+            transcript = result.channel.alternatives[0].transcript
+            words = getattr(result.channel.alternatives[0], "words", [])
+        print("Transcript:", transcript)
+        session_data = user_chanting_sessions.get(request_sid)
+        mantra_text = mantra.lower().strip()
+        if mantra_text:
+            cleaned_mantra = mantra_text.replace(',', '').replace('.', '').replace('!', '')
+            mantra_words = cleaned_mantra.split()
+            mantra_word_count = len(mantra_words)
+        else:
+            print(f"Mantra not found")
+            return
+
+        for word_data in words:
+            transcribed_word = word_data["word"] if isinstance(word_data, dict) else word_data.word
+            current_word_index = session_data.get("next_mantra_word_index", 0)
+            target_word = mantra_words[current_word_index]
+            if transcribed_word == target_word:
+                new_index = current_word_index + 1
+                print(f"works")
+                if new_index == mantra_word_count:
+                    session_data["count"] += 1
+                    emit('update_count', {'count': session_data["count"]}, to=request_sid)
+                    session_data["next_mantra_word_index"] = 0
+                    print(f"SID {request_sid}: MANTRA COMPLETE! New count: {session_data['count']}")
+                else:
+                    session_data["next_mantra_word_index"] = new_index
+                    print(f"SID {request_sid}: Found '{target_word}', now looking for '{mantra_words[new_index]}'")
+    except Exception as e:
+        print(f"Transcription error: {e}")
+        emit('chanting_error', {'message': 'Transcription processing failed'}, room=request_sid)
+
+def on_error(error, request_sid):
+    print(f'Deepgram WebSocket error: {error}')
+    emit('chanting_error', {'message': f'Deepgram error: {error}'}, room=request_sid)
+
+def on_close(code, reason, request_sid, user_chanting_sessions):
+    print(f'Deepgram WebSocket connection closed with code {code}, reason: {reason}')
+    user_chanting_sessions.pop(request_sid, None)
+
+@socketio.on('start_chanting')
+def start_chanting(mantra):
+    user_id = session["user_id"]
+    sid = request.sid  # <--- CAPTURE SID HERE
+    print(f'User {user_id} started chanting: {mantra}')
+    user_chanting_sessions[sid] = {
+        'count': 0,
+        'next_mantra_word_index': 0,
+        'dg_connection': None,
+        'user_id': user_id,
+        'keep_alive_manager': None
+    }
+
+    try:
+        dg_live_connection = deepgram.listen.websocket.v("1")
+        user_chanting_sessions[sid]['dg_connection'] = dg_live_connection
+
+        keep_alive_manager = KeepAliveManager(interval=8)
+        user_chanting_sessions[sid]['keep_alive_manager'] = keep_alive_manager
+        keep_alive_manager.start(dg_live_connection)
+
+        print("before handlers")
+        dg_live_connection.on('open', on_open)
+
+        # Transcript handler: pass sid and mantra as closure variables
+        def transcript_handler(self, **kwargs):
+            result = kwargs.get('result')
+            if not result:
+                print("No result found in transcript handler kwargs")
+                return
+            on_transcript(result, sid, mantra, user_chanting_sessions)  # Use captured sid, not request.sid
+
+        dg_live_connection.on(LiveTranscriptionEvents.Transcript, transcript_handler)
+
+        print("after transcript")
+
+        # Error handler: must accept self, error
+        def error_handler(self, error):
+            on_error(error, sid)
+
+        dg_live_connection.on(LiveTranscriptionEvents.Error, error_handler)
+
+        def close_handler(*args, **kwargs):
+            # Handle different possible signatures
+            if len(args) >= 3:
+                self, code, reason = args[0], args[1], args[2]
+            elif len(args) == 2:
+                self, code = args[0], args[1]
+                reason = "Unknown"
+            else:
+                code, reason = 1000, "Unknown"
+    
+            on_close(code, reason, sid, user_chanting_sessions)
 
 
+        dg_live_connection.on(LiveTranscriptionEvents.Close, close_handler)
+
+        dg_live_connection.start(LiveOptions(
+            model="nova-3",
+            language="en-US",
+            interim_results=True,
+            punctuate=False,
+            encoding="opus",
+            sample_rate=48000,
+            endpointing=300,  # Reduce endpointing for better responsiveness
+            utterance_end_ms="1000"  # Optimize for real-time processing
+        ))
+
+
+    except Exception as e:
+        emit('chanting_error', {'message': f'Could not connect to Deepgram: {e}'}, room=sid)
+
+
+@socketio.on('audio_chunk')
+def audio_chunk(data):
+    session_data = user_chanting_sessions.get(request.sid)
+    if session_data and session_data['dg_connection']:
+        try:
+            print("Data is being sent")
+            session_data['dg_connection'].send(data)
+        except Exception as e:
+            print(f"Audio send error: {e}")
+            emit('chanting_error', {'message': 'Audio transmission failed'}, room=request.sid)
+
+@socketio.on('stop_chanting')
+def handle_stop_chanting():
+    session_data = user_chanting_sessions.get(request.sid)
+    if session_data:
+        if session_data.get('keep_alive_manager'):
+            session_data['keep_alive_manager'].stop()
+        if session_data.get('dg_connection'):
+            session_data['dg_connection'].finish()
+        user_chanting_sessions.pop(request.sid, None)
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print(f'Client disconnected: {request.sid}')
+    session_data = user_chanting_sessions.get(request.sid)
+    if session_data:
+        if session_data.get('keep_alive_manager'):
+            session_data['keep_alive_manager'].stop()
+        if session_data.get('dg_connection'):
+            session_data['dg_connection'].finish()
+        user_chanting_sessions.pop(request.sid, None)
+
+if __name__ == '__main__':
+    socketio.run(app, debug=True)
