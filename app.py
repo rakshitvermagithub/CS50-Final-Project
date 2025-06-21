@@ -1,11 +1,10 @@
 import os
 from cs50 import SQL
-from flask import Flask,redirect, request, render_template, jsonify, session
+from flask import Flask, redirect, request, render_template, jsonify, session
 from flask_session import Session
 from config import Config
 from werkzeug.utils import secure_filename
 from werkzeug.security import check_password_hash, generate_password_hash
-from deepgram import DeepgramClient, PrerecordedOptions, FileSource
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -13,7 +12,6 @@ Session(app)
 
 db = SQL(f"sqlite:///{app.config['DATABASE_FILE']}")
 save_folder = app.config['UPLOAD_FOLDER']
-DEEPGRAM_API_KEY = app.config['DEEPGRAM_API_KEY']
 
 
 @app.route("/register", methods=["GET", "POST"])
