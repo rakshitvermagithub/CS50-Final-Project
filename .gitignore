@@ -3,5 +3,5 @@ db/
 flask_session/
 __pycache__/
 *.pyc
-venv/
+myenv/
 .vscode/
