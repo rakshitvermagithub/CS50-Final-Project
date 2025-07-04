@@ -123,78 +123,37 @@ def index():
     else:
         return render_template("index.html", logged_in=False)
 
-@app.route("/mantra")
+@app.route("/mantra", methods=["GET", "POST"])
 def mantra():
     # If user is logged_in 
     if "user_id" in session:
         id = session["user_id"]
-        return render_template("mantra.html", logged_in=True)
+
+        if request.method == "POST":
+            mantra_to_delete = request.form.get("mantra_to_delete")
+            # Delete the selected mantra from database
+            db.execute("DELETE FROM mantras WHERE id = ? AND mantra = ?", id, mantra_to_delete)
+
+        # Get already recorded mantra of user using SQL
+        mantras = db.execute("SELECT mantra FROM mantras WHERE id = ?", id)
+
+        return render_template("mantra.html", mantras=mantras, logged_in=True)
     else:
         return render_template("mantra.html", logged_in=False)
 
-@app.route("/record")
+@app.route("/record", methods=["GET", "POST"])
 def record():
     if "user_id" in session:
-        return render_template("record.html")
+
+        # If server was requested with a post
+        if request.method == "POST":
+            data = request.get_json()
+            mantra_to_save = data.get("mantra_recorded")
+
+            # Save mantra in SQL database
+            db.execute("INSERT INTO mantras(id, mantra) VALUES(?, ?)", session["user_id"], mantra_to_save)
+            return render_template("record.html")
+        else:
+           return render_template("record.html")
     else:
         return redirect("/register") 
-
-@app.route("/save_mantra", methods=["POST"])
-def save():
-    if 'audio' not in request.files:
-        return jsonify({'error': 'No audio file part in the request'}), 400
-    file = request.files['audio']
-    if file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
-    if file:
-        filename = secure_filename(file.filename)
-        file_path = os.path.join(save_folder, filename)
-        try:
-            file.save(file_path)
-            # Check if file exists?
-            if not os.path.exists(file_path):
-                return jsonify({'status': 'error', 'message': 'File does not exist'})
-            
-            saving_message = "File saved, successfully"
-
-            try: 
-                deepgram = DeepgramClient(DEEPGRAM_API_KEY)
-
-                with open(file_path, "rb") as file:
-                    buffer_data = file.read()
-
-                payload: FileSource = {
-                    "buffer": buffer_data,
-                }
-
-                options = PrerecordedOptions(
-                    model="nova-3",
-                    smart_format=True,
-                )
-
-                response = deepgram.listen.rest.v("1").transcribe_file(payload, options)
-                print(f"Raw Deepgram Response Object: {response}")
-
-                # Show transcription in backend
-                print(response.to_json(indent=4))
-
-                # Get the transcribed mantra
-                mantra = (response["results"]["channels"][0]["alternatives"][0]["transcript"])
-
-                # Only store mantra, if it got heard
-                if not mantra == '':
-                    # Store mantra in mantras table
-                    db.execute(
-                        "INSERT INTO mantras(id, mantra) VALUES(?, ?)", session["user_id"], mantra 
-                        )
-                return jsonify({'status': 'success', 'message': saving_message, 'deepgram_response': response})
-            except Exception as e:
-                print(f"Deepgram Exception: {e}")
-                return jsonify({'status': 'error', 'message': saving_message, 'transcription_error': f'Deepgram transcription failed: {e}'}), 500
-        except Exception as e:
-            print(f"Error saving audio file: {e}")
-            return jsonify({'status': 'error', 'message': f'Error saving audio file: {e}'}), 500    
-    return jsonify({'error': 'Failed to save audio'}), 500
-
-
-

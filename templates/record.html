@@ -1,102 +1,20 @@
 {% extends 'layout.html' %}
 
-{% block title %}Record Your Mantra{% endblock %} {# Sets the specific title for this page #}
+{% block title %}
+  Record Your Mantra
+{% endblock %}
 
 {% block main %}
 <div class="max-w-4xl mx-auto flex flex-col items-center justify-center min-h-[calc(100vh-200px)] text-center">
-    <div id="recordingCircle" class="w-64 h-64 bg-gray-200 rounded-full flex justify-center items-center mb-10 shadow-inner shadow-gray-300/50 shadow-2xl transition-all duration-300 ease-in-out">
-        <span id="recordButtonText" class="text-3xl font-semibold text-gray-800 select-none">Tap to Start/Stop Recording</span>
+    <div id="recordBtn" class="w-64 h-64 bg-gray-200 rounded-full flex justify-center items-center mb-10 shadow-inner shadow-gray-300/50 shadow-2xl transition-all duration-300 ease-in-out">
+        <span id="recordBtnText" class="text-3xl font-semibold text-gray-800 select-none">Tap to Start/Stop Recording</span>
     </div>
     <p class="text-xl text-gray-500 mt-[-20px] mb-12" id="recordingPrompt"></p>
+    <p>Saved Mantra:<h3 id="savedMantra"></h3></p>
 </div>
 <a href="/mantra" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-full" >
   x
 </a>
-<div class="justify-center">
-    <audio id="audioPlayer" controls></audio>
-</div>
 
-<script>
-
-let recordingCounter = 0; 
-
-document.addEventListener('DOMContentLoaded', () => {
-    const recordingCircle = document.getElementById('recordingCircle');
-    const recordingButtonText = document.getElementById('recordButtonText');
-    const recordingPrompt = document.getElementById('recordingPrompt');
-    const errorArea = document.getElementById('errorArea');
-    let audioPlayer = document.getElementById('audioPlayer'); 
-    let isRecording = false;
-    let mediaRecorder;
-    let audioStream;
-    const recordedChunks = [];
-
-    recordingCircle.addEventListener('click', () => {
-        if (!audioStream){ // Get the stream if not available
-            navigator.mediaDevices.getUserMedia({ audio: true })
-            .then(stream => {
-                // We got the stream! 
-                audioStream = stream;
-                // Now we can use it with MediaRecorder.
-                mediaRecorder = new MediaRecorder(audioStream, { mimeType: 'audio/webm' });
-
-                mediaRecorder.ondataavailable = event => {
-                    if (event.data.size > 0){
-                        recordedChunks.push(event.data);
-                    }   
-                }
-
-                mediaRecorder.onstop = () => { 
-                    isRecording = false;
-                    const recordedBlob = new Blob(recordedChunks, {type: 'audio/webm'});
-                    const recordingUrl = URL.createObjectURL(recordedBlob)
-                    audioPlayer.src = recordingUrl;
-                    audioPlayer.controls = true;
-                    recordingButtonText.textContent = 'Mantra saved... Processing';
-
-                    const filename = `haribol_${recordingCounter}.webm`; // variable filename to prevent overwriting
-                    
-                    const formData = new FormData();
-                    formData.append('audio', recordedBlob, filename);
-
-                    fetch('/save_mantra',{
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if(data.message){
-                            console.log('Audio saved:', data.message);
-                        } else if (data.error){
-                            console.error('Error saving audio', data.error);
-                        }
-                    })
-
-                    recordingCounter++;  
-                }
-                // Starts or stops recording based on isRecording
-                toggleRecording();
-            })
-            .catch(error => {
-                console.error('Error accessing media devices:', error);
-            });
-        } else {
-            toggleRecording(); // We have the stream, just start/stop recording
-        }       
-    })
-
-    function toggleRecording(){
-        if (!isRecording){
-            recordedChunks.length = 0; // Why not = [];/ works to erase data
-            audioPlayer.src = ''; // removing audio from player
-            audioPlayer.controls = false;
-            mediaRecorder.start();
-            isRecording = true;
-            recordingButtonText.textContent = 'Recording... Tap to Stop';
-        } else {
-            mediaRecorder.stop();
-        }
-    }                
-})
-</script>
+<script src="../static/script.js"></script>
 {% endblock %}
